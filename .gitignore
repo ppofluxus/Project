@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Env files
+.env
+.env.*
