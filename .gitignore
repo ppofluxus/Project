@@ -56,9 +56,9 @@ runs/
 **/*.h5
 **/*.ckpt*
 **/*.tfevents*
-**/*.png
-**/*.jpg
-**/*.jpeg
+**/*.[Pp][Nn][Gg]
+**/*.[Jj][Pp][Gg]
+**/*.[Jj][Pp][Ee][Gg]
 **/*.zip
 **/__pycache__/
 
