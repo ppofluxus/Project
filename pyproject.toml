@@ -12,6 +12,27 @@ license = { text = "MIT" }
 authors = [{ name = "ppofluxus", email = "ppofluxus@gmail.com" }]
 dependencies = []
 
+[project.optional-dependencies]
+# Heavy ML deps are optional; install with:
+#   pip install -e .[timeseries]
+#   pip install -e .[vision]
+timeseries = [
+	"numpy>=1.24",
+	"pandas>=2.0",
+	"scikit-learn>=1.3",
+	"matplotlib>=3.7",
+	"tensorflow>=2.12",
+]
+vision = [
+	"numpy>=1.24",
+	"pandas>=2.0",
+	"pillow>=10.0",
+	"scikit-learn>=1.3",
+	"matplotlib>=3.7",
+	"seaborn>=0.12",
+	"tensorflow>=2.12",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

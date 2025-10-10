@@ -47,3 +47,41 @@ Thumbs.db
 # Env files
 .env
 .env.*
+
+# Large data/artifacts (examples outputs)
+examples/results/
+results/
+runs/
+**/*.keras
+**/*.h5
+**/*.ckpt*
+**/*.tfevents*
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.zip
+**/__pycache__/
+
+# Project-specific artifacts
+examples/**/__pycache__/
+examples/**/.ipynb_checkpoints/
+examples/results/
+examples/vision/catvsdog.py
+tests/__pycache__/
+tests/runs/
+tests/results/
+tests/sehyun/
+tests/yerim/
+tests/Lstm_traffic_prediction.py
+tests/autoencoder_prediction.py
+tests/braintumor_predition.py
+tests/catvsdog.py
+tests/**/*.png
+tests/**/*.jpg
+tests/**/*.jpeg
+tests/**/*.csv
+tests/**/*.zip
+tests/**/*.docx
+tests/**/*.keras
+tests/**/*.h5
+tests/**/*.pkl
