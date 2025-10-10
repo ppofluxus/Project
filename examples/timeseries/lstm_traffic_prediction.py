@@ -11,19 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
-from typing import Tuple
-
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-from sklearn.metrics import mean_absolute_error, r2_score
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.layers import LSTM, Dense, Reshape, Input
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import Adam
+from typing import Any, Tuple
 
 
 def set_env() -> None:
@@ -31,25 +19,29 @@ def set_env() -> None:
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
 
-def set_font(try_paths: list[str]) -> None:
+def set_font(plt_module, try_paths: list[str]) -> None:
+    import matplotlib.font_manager as fm
+
     chosen = None
     for p in try_paths:
         if os.path.exists(p):
             try:
                 name = fm.FontProperties(fname=p).get_name()
-                plt.rc("font", family=name)
+                plt_module.rc("font", family=name)
                 chosen = p
                 break
             except Exception:
                 pass
-    plt.rcParams["axes.unicode_minus"] = False
+    plt_module.rcParams["axes.unicode_minus"] = False
     if chosen:
         print(f"[font] Using Pretendard at {chosen}")
     else:
         print("[font] Pretendard not found, using default font")
 
 
-def create_sequences(data: np.ndarray, input_steps: int, output_steps: int) -> Tuple[np.ndarray, np.ndarray]:
+def create_sequences(data: Any, input_steps: int, output_steps: int) -> Tuple[Any, Any]:
+    import numpy as np
+
     X, y = [], []
     for i in range(len(data) - input_steps - output_steps + 1):
         X.append(data[i : (i + input_steps)])
@@ -57,7 +49,11 @@ def create_sequences(data: np.ndarray, input_steps: int, output_steps: int) -> T
     return np.array(X), np.array(y)
 
 
-def build_model(params: dict, input_shape: Tuple[int, int], output_shape: Tuple[int, int]) -> Sequential:
+def build_model(params: dict, input_shape: Tuple[int, int], output_shape: Tuple[int, int]):
+    from tensorflow.keras.layers import LSTM, Dense, Reshape, Input
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.optimizers import Adam
+
     model = Sequential([
         Input(shape=input_shape),
         LSTM(params["hidden_units"], activation="tanh"),
@@ -68,7 +64,10 @@ def build_model(params: dict, input_shape: Tuple[int, int], output_shape: Tuple[
     return model
 
 
-def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray, scaler: MinMaxScaler):
+def evaluate_metrics(y_true: Any, y_pred: Any, scaler: Any):
+    import numpy as np
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
     y_true_unscaled = scaler.inverse_transform(y_true.reshape(-1, y_true.shape[2]))
     y_pred_unscaled = scaler.inverse_transform(y_pred.reshape(-1, y_true.shape[2]))
     rmse = float(np.sqrt(mean_squared_error(y_true_unscaled, y_pred_unscaled)))
@@ -78,6 +77,11 @@ def evaluate_metrics(y_true: np.ndarray, y_pred: np.ndarray, scaler: MinMaxScale
 
 
 def main():
+    import matplotlib.pyplot as plt  # noqa: WPS433
+    import numpy as np  # noqa: WPS433
+    import pandas as pd  # noqa: WPS433
+    from sklearn.preprocessing import MinMaxScaler  # noqa: WPS433
+
     parser = argparse.ArgumentParser(description="LSTM traffic prediction example")
     parser.add_argument("--h5", dest="h5_path", default=os.getenv("TRAFFIC_H5", ""), help="Path to metr-la.h5 (optional)")
     parser.add_argument("--epochs", type=int, default=50)
@@ -92,7 +96,12 @@ def main():
     args = parser.parse_args()
 
     set_env()
-    set_font(["/Users/loonatrium/Library/Fonts/Pretendard-Medium.otf"])  # best-effort
+    font_candidates = [
+        os.getenv("PRETENDARD_PATH", ""),
+        os.path.expanduser("~/Library/Fonts/Pretendard-Medium.otf"),
+        os.path.expanduser("~/Library/Fonts/Pretendard-Regular.otf"),
+    ]
+    set_font(plt, [p for p in font_candidates if p])
 
     # Load data
     traffic_data_raw: np.ndarray

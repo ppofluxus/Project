@@ -10,13 +10,7 @@ from __future__ import annotations
 
 import argparse
 import os
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Dense
-from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
+
 
 
 def set_env() -> None:
@@ -25,6 +19,9 @@ def set_env() -> None:
 
 
 def build_autoencoder(input_dim: int, encoding_dim: int = 64):
+    from tensorflow.keras.layers import Dense, Input
+    from tensorflow.keras.models import Model
+
     input_layer = Input(shape=(input_dim,))
     encoded = Dense(128, activation="relu")(input_layer)
     encoded = Dense(encoding_dim, activation="relu")(encoded)
@@ -44,6 +41,11 @@ def main():
     parser.add_argument("--val-split", type=float, default=0.2)
     parser.add_argument("--no-show", action="store_true")
     args = parser.parse_args()
+
+    import matplotlib.pyplot as plt  # noqa: WPS433 - imported lazily
+    import numpy as np  # noqa: WPS433
+    import pandas as pd  # noqa: WPS433
+    from sklearn.preprocessing import MinMaxScaler  # noqa: WPS433
 
     set_env()
 
