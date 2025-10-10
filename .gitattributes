@@ -1,0 +1,14 @@
+# Enforce consistent line endings across contributors.
+* text=auto eol=lf
+
+# Preserve Windows line endings for batch files if they are added later.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets should keep original formatting.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
