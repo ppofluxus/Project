@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OnSense - 오늘의 급식 안내</title>
   <link rel="preload" as="audio" href="./ONsensE-prototype.mp3" />
+  <link rel="preload" as="audio" href="./ONsensE-prototype.m4a" />
   <style>
     :root { color-scheme: light dark; }
     body {
@@ -37,10 +38,19 @@
     </audio>
   </main>
 
+  <!-- 첫 진입 시 자연스러운 사용자 제스처 유도를 위한 전면 게이트 (모바일 친화) -->
+  <div id="gate" role="button" tabindex="0" aria-label="화면을 탭하면 음성이 재생됩니다"
+       style="position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.5); color:#fff; font-size:1.05rem; z-index:9999;">
+    화면을 탭하면 음성이 재생됩니다
+  </div>
+
   <script>
-    const audio  = document.getElementById('mealAudio');
-    const btn    = document.getElementById('playBtn');
-    const status = document.getElementById('status');
+  const audio  = document.getElementById('mealAudio');
+  const btn    = document.getElementById('playBtn');
+  const status = document.getElementById('status');
+  const gate   = document.getElementById('gate');
+
+  function hideGate() { try { gate?.remove(); } catch(_) {} }
 
     // Web Audio context for broader compatibility (especially Safari)
     let audioCtx;
@@ -84,6 +94,7 @@
         }
         await audio.play();
         status.textContent = '재생 중입니다. (곧 소리가 나옵니다)';
+        hideGate();
         // 재생이 시작되면 가능한 환경에서 점진적으로 음소거 해제 시도
         const unmuteAttempt = () => {
           tryUnmute();
@@ -119,6 +130,7 @@
           audioCtx.resume().catch(() => {});
         }
         rampUpVolume();
+        hideGate();
       } catch (_) {}
     }
 
@@ -131,6 +143,7 @@
         audio.muted = false;
         await audio.play();
         rampUpVolume();
+        hideGate();
         btn.hidden = true;
         status.textContent = '재생 중입니다 🎶';
       } catch (e) {
@@ -141,13 +154,29 @@
     btn.addEventListener('click', playWithUserGesture);
 
     // 버튼을 누르지 않더라도, 사용자의 어떤 제스처든 허용되면 즉시 재생 시도
-    ['pointerdown','touchstart','keydown','wheel'].forEach(evt => {
+    // 모바일/데스크톱에서 사용자 제스처로 인정되는 이벤트들을 폭넓게 수집
+    ;['click','pointerdown','pointerup','touchend','touchstart','keydown'].forEach(evt => {
       window.addEventListener(evt, () => {
         if (audio.paused || audio.muted) {
           playWithUserGesture();
         }
       }, { once: true, passive: true });
     });
+
+    // 전면 게이트에서의 한 번의 탭/클릭으로도 즉시 재생
+    if (gate) {
+      const gatePlay = (e) => {
+        e.preventDefault();
+        playWithUserGesture();
+        hideGate();
+      };
+      gate.addEventListener('pointerdown', gatePlay, { once:true, passive:false });
+      gate.addEventListener('click', gatePlay, { once:true, passive:false });
+      gate.addEventListener('touchend', gatePlay, { once:true, passive:false });
+      gate.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') gatePlay(e);
+      }, { once:true });
+    }
 
     // 소스가 준비되면 자동재생 시도
     if (audio.readyState >= 2) {
