@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OnSense - 오늘의 급식 안내</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, 'Noto Sans KR', sans-serif;
+      display: grid; place-items: center;
+      min-height: 100dvh; margin: 0; background:#fff; color:#333;
+      text-align:center;
+    }
+    h1 { font-size:1.5rem; margin:0 0 12px; }
+    p  { margin:0 0 16px; color:#555; }
+    .btn {
+      display:inline-block; padding:12px 18px; border:0; border-radius:10px;
+      background:#4caf50; color:#fff; font-size:1rem; cursor:pointer;
+    }
+    .btn[hidden] { display:none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>오늘의 급식 안내 🎧</h1>
+    <p id="status">잠시 후 자동으로 재생을 시도합니다…</p>
+
+    <!-- 자동재생 실패 시 표시될 버튼 -->
+    <button id="playBtn" class="btn" hidden>▶ 음성 재생</button>
+
+    <audio id="mealAudio" preload="auto" playsinline>
+      <source src="./ONsensE-prototype.mp3" type="audio/mpeg" />
+      브라우저가 오디오를 지원하지 않습니다.
+    </audio>
+  </main>
+
+  <script>
+    const audio  = document.getElementById('mealAudio');
+    const btn    = document.getElementById('playBtn');
+    const status = document.getElementById('status');
+
+    async function tryAutoplay() {
+      try {
+        audio.muted = true;
+        await audio.play();
+        status.textContent = '재생 중입니다. (곧 소리가 나옵니다)';
+        setTimeout(() => { tryUnmute(); }, 300);
+      } catch {
+        btn.hidden = false;
+        status.textContent = '브라우저 정책으로 자동재생이 차단되었습니다. 아래 버튼을 눌러주세요.';
+      }
+    }
+
+    function tryUnmute() {
+      try {
+        audio.muted = false;
+      } catch (_) {}
+    }
+
+    btn.addEventListener('click', async () => {
+      try {
+        audio.muted = false;
+        await audio.play();
+        btn.hidden = true;
+        status.textContent = '재생 중입니다 🎶';
+      } catch (e) {
+        status.textContent = '재생에 실패했습니다. 콘솔 오류를 확인하세요.';
+      }
+    });
+
+    if (audio.readyState >= 2) {
+      tryAutoplay();
+    } else {
+      audio.addEventListener('canplay', tryAutoplay, { once: true });
+      setTimeout(tryAutoplay, 2000);
+    }
+  </script>
+</body>
+</html>

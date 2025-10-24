@@ -1,0 +1,1 @@
+{"phase": "grid", "cfg": "3/27", "session": null, "epoch_total": 5, "epoch_progress": null, "batch": 431, "steps_per_epoch": 1284, "loss": 0.03223501145839691, "samples_per_sec": 6.358785887884166, "mb_per_sec": 0.0012128421569603284, "eta_epoch_sec": 2146.3216784833844}

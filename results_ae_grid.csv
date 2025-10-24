@@ -1,0 +1,3 @@
+latent_dim,batch_size,activation,val_RMSE
+256,16,relu,0.07588068298615405
+256,16,tanh,0.0673095571002171
