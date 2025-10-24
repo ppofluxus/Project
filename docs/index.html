@@ -75,15 +75,36 @@
 
     async function tryAutoplay() {
       try {
+        // 대부분의 브라우저에서 허용되는 '무음/볼륨0 자동재생'
         ensureAudioGraph();
         audio.muted = true; // policy 친화적 시작
         if (audioCtx && audioCtx.state === 'suspended') {
+          // 일부 브라우저는 사용자 제스처 없이 resume 불가 → 예외 무시
           audioCtx.resume().catch(() => {});
         }
         await audio.play();
         status.textContent = '재생 중입니다. (곧 소리가 나옵니다)';
-        setTimeout(() => { tryUnmute(); }, 300);
+        // 재생이 시작되면 가능한 환경에서 점진적으로 음소거 해제 시도
+        const unmuteAttempt = () => {
+          tryUnmute();
+          rampUpVolume();
+        };
+        audio.addEventListener('playing', () => {
+          setTimeout(unmuteAttempt, 300);
+          // 몇 초 동안 간헐적으로 재시도 (일부 데스크톱 브라우저에 유효)
+          let tries = 0;
+          const id = setInterval(() => {
+            if (!audio.muted && (gainNode ? gainNode.gain.value >= 0.99 : true)) {
+              clearInterval(id);
+              return;
+            }
+            tries += 1;
+            unmuteAttempt();
+            if (tries > 6) clearInterval(id);
+          }, 500);
+        }, { once: true });
       } catch {
+        // 자동재생 실패 → 버튼 노출
         btn.hidden = false;
         status.textContent = '브라우저 정책으로 자동재생이 차단되었습니다. 아래 버튼을 눌러주세요.';
       }
@@ -92,6 +113,7 @@
     function tryUnmute() {
       try {
         audio.muted = false;
+        // Web Audio 경로도 볼륨 상승 시도
         ensureAudioGraph();
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume().catch(() => {});
@@ -127,10 +149,12 @@
       }, { once: true, passive: true });
     });
 
+    // 소스가 준비되면 자동재생 시도
     if (audio.readyState >= 2) {
       tryAutoplay();
     } else {
       audio.addEventListener('canplay', tryAutoplay, { once: true });
+      // 네트워크가 느릴 때도 일정 시간 후 시도
       setTimeout(tryAutoplay, 2000);
     }
 
