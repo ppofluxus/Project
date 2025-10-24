@@ -53,9 +53,11 @@
   function hideGate() { try { gate?.remove(); } catch(_) {} }
 
     // Web Audio context for broader compatibility (especially Safari)
-    let audioCtx;
-    let mediaSource;
-    let gainNode;
+  let audioCtx;
+  let mediaSource;
+  let gainNode;
+  let userUnlocked = false; // 사용자 제스처 또는 명확한 재생 성공 이후 true
+  let holdTimer = null;     // 초반 볼륨 안정화 타이머
 
     function ensureAudioGraph() {
       if (!audioCtx) {
@@ -66,12 +68,13 @@
       }
       if (!gainNode) {
         gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime); // start silent
+        // 초기값을 1로 두고, 자동재생 정책은 muted로 준수
+        try { gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime); } catch(_) {}
         mediaSource.connect(gainNode).connect(audioCtx.destination);
       }
     }
 
-    async function rampUpVolume(durationMs = 600) {
+    async function rampUpVolume(durationMs = 400) {
       if (!audioCtx || !gainNode) return;
       const now = audioCtx.currentTime;
       const end = now + durationMs / 1000;
@@ -83,39 +86,43 @@
       } catch (_) {}
     }
 
+    function lockFullVolume() {
+      if (!audioCtx || !gainNode) return;
+      const now = audioCtx.currentTime || 0;
+      try {
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(1.0, now);
+      } catch(_) {}
+      try { audio.volume = 1.0; } catch(_) {}
+      try { audio.muted = false; } catch(_) {}
+    }
+
+    function startHoldVolume(seconds = 15) {
+      if (holdTimer) return;
+      const until = Date.now() + seconds * 1000;
+      holdTimer = setInterval(() => {
+        lockFullVolume();
+        if (Date.now() > until || audio.ended) {
+          clearInterval(holdTimer);
+          holdTimer = null;
+        }
+      }, 1000);
+    }
+
     async function tryAutoplay() {
       try {
-        // 대부분의 브라우저에서 허용되는 '무음/볼륨0 자동재생'
         ensureAudioGraph();
         audio.muted = true; // policy 친화적 시작
         if (audioCtx && audioCtx.state === 'suspended') {
-          // 일부 브라우저는 사용자 제스처 없이 resume 불가 → 예외 무시
           audioCtx.resume().catch(() => {});
         }
-        await audio.play();
+  await audio.play();
         status.textContent = '재생 중입니다. (곧 소리가 나옵니다)';
-        hideGate();
-        // 재생이 시작되면 가능한 환경에서 점진적으로 음소거 해제 시도
-        const unmuteAttempt = () => {
-          tryUnmute();
-          rampUpVolume();
-        };
-        audio.addEventListener('playing', () => {
-          setTimeout(unmuteAttempt, 300);
-          // 몇 초 동안 간헐적으로 재시도 (일부 데스크톱 브라우저에 유효)
-          let tries = 0;
-          const id = setInterval(() => {
-            if (!audio.muted && (gainNode ? gainNode.gain.value >= 0.99 : true)) {
-              clearInterval(id);
-              return;
-            }
-            tries += 1;
-            unmuteAttempt();
-            if (tries > 6) clearInterval(id);
-          }, 500);
-        }, { once: true });
+  hideGate();
+  userUnlocked = true;
+  startHoldVolume();
+        setTimeout(() => { tryUnmute(); }, 300);
       } catch {
-        // 자동재생 실패 → 버튼 노출
         btn.hidden = false;
         status.textContent = '브라우저 정책으로 자동재생이 차단되었습니다. 아래 버튼을 눌러주세요.';
       }
@@ -124,12 +131,12 @@
     function tryUnmute() {
       try {
         audio.muted = false;
-        // Web Audio 경로도 볼륨 상승 시도
         ensureAudioGraph();
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume().catch(() => {});
         }
         rampUpVolume();
+        if (userUnlocked) lockFullVolume();
         hideGate();
       } catch (_) {}
     }
@@ -143,6 +150,8 @@
         audio.muted = false;
         await audio.play();
         rampUpVolume();
+        userUnlocked = true;
+        startHoldVolume();
         hideGate();
         btn.hidden = true;
         status.textContent = '재생 중입니다 🎶';
@@ -166,6 +175,7 @@
     // 전면 게이트에서의 한 번의 탭/클릭으로도 즉시 재생
     if (gate) {
       const gatePlay = (e) => {
+        // iOS에서 사용자 제스처 컨텍스트를 유지하기 위해 동기 실행
         e.preventDefault();
         playWithUserGesture();
         hideGate();
@@ -178,12 +188,10 @@
       }, { once:true });
     }
 
-    // 소스가 준비되면 자동재생 시도
     if (audio.readyState >= 2) {
       tryAutoplay();
     } else {
       audio.addEventListener('canplay', tryAutoplay, { once: true });
-      // 네트워크가 느릴 때도 일정 시간 후 시도
       setTimeout(tryAutoplay, 2000);
     }
 
@@ -191,6 +199,16 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && (audio.paused || audio.muted)) {
         tryAutoplay();
+      }
+      if (document.visibilityState === 'visible' && userUnlocked) {
+        startHoldVolume(8);
+      }
+    });
+
+    // 예기치 않은 볼륨 변화에 대한 방어막
+    audio.addEventListener('volumechange', () => {
+      if (userUnlocked && (audio.muted || audio.volume < 0.99)) {
+        lockFullVolume();
       }
     });
   </script>
