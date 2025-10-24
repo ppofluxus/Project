@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OnSense - 오늘의 급식 안내</title>
+  <link rel="preload" as="audio" href="./ONsensE-prototype.mp3" />
   <style>
     :root { color-scheme: light dark; }
     body {
@@ -40,9 +41,44 @@
     const btn    = document.getElementById('playBtn');
     const status = document.getElementById('status');
 
+    // Web Audio context for broader compatibility (especially Safari)
+    let audioCtx;
+    let mediaSource;
+    let gainNode;
+
+    function ensureAudioGraph() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (!mediaSource) {
+        mediaSource = audioCtx.createMediaElementSource(audio);
+      }
+      if (!gainNode) {
+        gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime); // start silent
+        mediaSource.connect(gainNode).connect(audioCtx.destination);
+      }
+    }
+
+    async function rampUpVolume(durationMs = 600) {
+      if (!audioCtx || !gainNode) return;
+      const now = audioCtx.currentTime;
+      const end = now + durationMs / 1000;
+      // Smooth ramp to 100%
+      try {
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+        gainNode.gain.linearRampToValueAtTime(1.0, end);
+      } catch (_) {}
+    }
+
     async function tryAutoplay() {
       try {
-        audio.muted = true;
+        ensureAudioGraph();
+        audio.muted = true; // policy 친화적 시작
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
         await audio.play();
         status.textContent = '재생 중입니다. (곧 소리가 나옵니다)';
         setTimeout(() => { tryUnmute(); }, 300);
@@ -55,18 +91,39 @@
     function tryUnmute() {
       try {
         audio.muted = false;
+        ensureAudioGraph();
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        rampUpVolume();
       } catch (_) {}
     }
 
-    btn.addEventListener('click', async () => {
+    async function playWithUserGesture() {
       try {
+        ensureAudioGraph();
+        if (audioCtx && audioCtx.state === 'suspended') {
+          await audioCtx.resume();
+        }
         audio.muted = false;
         await audio.play();
+        rampUpVolume();
         btn.hidden = true;
         status.textContent = '재생 중입니다 🎶';
       } catch (e) {
         status.textContent = '재생에 실패했습니다. 콘솔 오류를 확인하세요.';
       }
+    }
+
+    btn.addEventListener('click', playWithUserGesture);
+
+    // 버튼을 누르지 않더라도, 사용자의 어떤 제스처든 허용되면 즉시 재생 시도
+    ['pointerdown','touchstart','keydown','wheel'].forEach(evt => {
+      window.addEventListener(evt, () => {
+        if (audio.paused || audio.muted) {
+          playWithUserGesture();
+        }
+      }, { once: true, passive: true });
     });
 
     if (audio.readyState >= 2) {
@@ -75,6 +132,13 @@
       audio.addEventListener('canplay', tryAutoplay, { once: true });
       setTimeout(tryAutoplay, 2000);
     }
+
+    // 탭이 활성화되는 시점에도 재시도 (일부 환경에서 효과)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && (audio.paused || audio.muted)) {
+        tryAutoplay();
+      }
+    });
   </script>
 </body>
 </html>
